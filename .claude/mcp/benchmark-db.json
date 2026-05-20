@@ -1,0 +1,34 @@
+{
+  "name": "benchmark-db",
+  "description": "Benchmark database MCP server for performance history per op per commit",
+  "command": "python",
+  "args": ["-m", "pytorch_benchmark_mcp"],
+  "env": {
+    "BENCHMARK_DB_URL": "${PYTORCH_BENCHMARK_DB_URL}",
+    "BENCHMARK_DB_TOKEN": "${PYTORCH_BENCHMARK_TOKEN}"
+  },
+  "capabilities": {
+    "performance_history": true,
+    "regression_detection": true,
+    "op_comparison": true,
+    "commit_comparison": true
+  },
+  "agents_with_access": [
+    "benchmark-dashboard (plugin)"
+  ],
+  "methods": {
+    "get_history": {
+      "description": "Get benchmark history for an op across commits",
+      "params": ["op", "commits", "metrics"]
+    },
+    "get_regressions": {
+      "description": "Get all ops with regressions in the last N commits",
+      "params": ["commits", "threshold_pct"]
+    },
+    "compare_commits": {
+      "description": "Compare all op benchmarks between two commits",
+      "params": ["base_commit", "head_commit"]
+    }
+  },
+  "note": "Requires access to internal PyTorch benchmark infrastructure"
+}

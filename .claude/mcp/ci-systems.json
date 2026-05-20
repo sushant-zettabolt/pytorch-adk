@@ -1,0 +1,36 @@
+{
+  "name": "ci-systems",
+  "description": "CI systems MCP server for test run results, flaky test history, and CI job logs",
+  "command": "python",
+  "args": ["-m", "pytorch_ci_mcp"],
+  "env": {
+    "CI_API_TOKEN": "${PYTORCH_CI_TOKEN}",
+    "CI_BASE_URL": "https://hud.pytorch.org/api"
+  },
+  "capabilities": {
+    "test_run_results": true,
+    "flaky_test_history": true,
+    "ci_job_logs": true,
+    "baseline_comparison": true
+  },
+  "agents_with_access": [
+    "stop-regression-report (hook)",
+    "build-runner",
+    "pr-lifecycle"
+  ],
+  "methods": {
+    "get_test_results": {
+      "description": "Get test results for a commit or PR",
+      "params": ["commit_sha", "test_suite", "limit"]
+    },
+    "get_flaky_tests": {
+      "description": "Get historically flaky tests for a file or module",
+      "params": ["file_path", "days_back"]
+    },
+    "get_job_log": {
+      "description": "Get full log for a CI job",
+      "params": ["job_id"]
+    }
+  },
+  "note": "Requires PYTORCH_CI_TOKEN. Install: pip install pytorch-ci-mcp"
+}

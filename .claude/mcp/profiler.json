@@ -1,0 +1,34 @@
+{
+  "name": "profiler",
+  "description": "Profiler MCP server for torch.profiler traces, kineto data, and memory snapshots",
+  "command": "python",
+  "args": ["-m", "pytorch_profiler_mcp"],
+  "env": {
+    "PROFILER_STORAGE_URL": "${PYTORCH_PROFILER_URL}",
+    "PROFILER_API_TOKEN": "${PYTORCH_PROFILER_TOKEN}"
+  },
+  "capabilities": {
+    "profiler_traces": true,
+    "kineto_data": true,
+    "memory_snapshots": true,
+    "operator_breakdown": true
+  },
+  "agents_with_access": [
+    "cuda-perf"
+  ],
+  "methods": {
+    "get_trace": {
+      "description": "Retrieve a saved profiler trace by ID",
+      "params": ["trace_id"]
+    },
+    "get_memory_snapshot": {
+      "description": "Retrieve a CUDA memory snapshot",
+      "params": ["snapshot_id"]
+    },
+    "list_traces": {
+      "description": "List available traces for a model or script",
+      "params": ["model_name", "limit"]
+    }
+  },
+  "note": "Requires access to internal PyTorch profiler storage"
+}

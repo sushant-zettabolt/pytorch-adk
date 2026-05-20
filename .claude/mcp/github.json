@@ -1,0 +1,25 @@
+{
+  "name": "github",
+  "description": "GitHub MCP server for PR state, CI checks, issue labels, and reviewer assignment",
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+  },
+  "capabilities": {
+    "pr_state": true,
+    "review_comments": true,
+    "ci_check_status": true,
+    "issue_labels": true,
+    "reviewer_assignment": true,
+    "codeowners": true
+  },
+  "agents_with_access": [
+    "pr-lifecycle",
+    "github-ops",
+    "issue-triager",
+    "pr-reviewer"
+  ],
+  "read_only": false,
+  "note": "Requires GITHUB_TOKEN env var with repo + PR read/write scope"
+}

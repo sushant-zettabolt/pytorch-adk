@@ -1,0 +1,20 @@
+{
+  "name": "pytorch-adk",
+  "version": "2.3.0",
+  "description": "Complete PyTorch ADK — 22 agents, 25 skills, 11 hooks, MCP configs, and index-building tools.",
+  "prerequisites": [
+    "Target directory must be a PyTorch git checkout",
+    "Python venv at <project>/venv/ with PyTorch installed",
+    "Run tools/adk/build_index.py after install to populate the index",
+    "ANTHROPIC_API_KEY env var set if using llm_gap_fill for unresolved edges"
+  ],
+  "components": {
+    "agents": ".claude/agents/",
+    "skills": ".claude/skills/",
+    "hooks": ".claude/hooks/",
+    "mcp": ".claude/mcp/",
+    "tools": "tools/adk/",
+    "config": ".claude/CLAUDE.md",
+    "settings_template": ".claude/settings.json.template"
+  }
+}

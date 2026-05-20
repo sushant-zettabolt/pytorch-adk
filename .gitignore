@@ -1,0 +1,13 @@
+# Index artifacts — built locally per-checkout, never committed
+.claude/index/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
