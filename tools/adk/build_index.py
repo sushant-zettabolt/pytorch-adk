@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent
@@ -114,6 +115,31 @@ _CPP_SKIP_KEYWORDS = {
 }
 
 
+def _scan_one_cpp_file(cpp_file: Path, root: Path) -> tuple[str, dict, str | None]:
+    """Scan one C++ file for symbols. Safe to call from worker threads."""
+    rel_path = str(cpp_file.relative_to(root))
+    local: dict = {}
+    try:
+        for lineno, line in enumerate(cpp_file.read_text(errors="replace").splitlines(), 1):
+            for pat in (_CPP_CLASS_RE, _CPP_FUNC_RE):
+                m = pat.match(line)
+                if m:
+                    name = m.group(1)
+                    if len(name) > 2 and name not in _CPP_SKIP_KEYWORDS and not name.startswith("_"):
+                        if name not in local:
+                            local[name] = {
+                                "file": rel_path,
+                                "line": lineno,
+                                "anchor": name,
+                                "language": "cpp",
+                                "resolution": "static",
+                            }
+                    break
+    except Exception as exc:
+        return rel_path, local, str(exc)
+    return rel_path, local, None
+
+
 def scan_cpp_symbols(root: Path) -> dict:
     symbols: dict = {}
 
@@ -172,37 +198,27 @@ def scan_cpp_symbols(root: Path) -> dict:
         except subprocess.TimeoutExpired:
             print("  C++: ctags timed out — falling back to grep")
 
-    # Grep fallback
+    # Grep fallback — parallel via ThreadPoolExecutor
     total_cpp = len(cpp_files)
-    print(f"  C++: grep fallback on {total_cpp} files (ctags not available)")
-    print(f"  C++: this may take several minutes for large codebases")
+    workers = os.cpu_count() or 4
+    print(f"  C++: grep fallback on {total_cpp} files using {workers} threads (ctags not available)")
 
     grep_start = time.time()
-    PROGRESS_INTERVAL = 200  # print a line every N files
 
-    for file_idx, cpp_file in enumerate(cpp_files, 1):
-        rel_path = str(cpp_file.relative_to(root))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(_scan_one_cpp_file, f, root) for f in cpp_files]
 
-        print(f"  C++ [{file_idx}/{total_cpp}] indexing {rel_path}")
+        for file_idx, future in enumerate(futures, 1):
+            rel_path, file_symbols, warning = future.result()
 
-        try:
-            for lineno, line in enumerate(cpp_file.read_text(errors="replace").splitlines(), 1):
-                for pat in (_CPP_CLASS_RE, _CPP_FUNC_RE):
-                    m = pat.match(line)
-                    if m:
-                        name = m.group(1)
-                        if len(name) > 2 and name not in _CPP_SKIP_KEYWORDS and not name.startswith("_"):
-                            if name not in symbols:
-                                symbols[name] = {
-                                    "file": rel_path,
-                                    "line": lineno,
-                                    "anchor": name,
-                                    "language": "cpp",
-                                    "resolution": "static",
-                                }
-                        break
-        except Exception as exc:
-            print(f"  C++ grep  WARNING: skipping {rel_path} ({exc})")
+            print(f"  C++ [{file_idx}/{total_cpp}] indexing {rel_path}")
+
+            if warning is not None:
+                print(f"  C++ grep  WARNING: skipping {rel_path} ({warning})")
+
+            for name, entry in file_symbols.items():
+                if name not in symbols:
+                    symbols[name] = entry
 
     grep_elapsed = time.time() - grep_start
     print(f"  C++: {len(symbols)} symbols via grep in {grep_elapsed:.1f}s")
