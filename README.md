@@ -61,22 +61,86 @@ Stop          → .claude/hooks/verify_answer.py
 Stop          → .claude/hooks/handoff-block-enforcer.py
 ```
 
-## Agent routing
+## Feature list
 
-Claude routes automatically based on your request. Key agents:
+### Agents
 
-| Ask Claude... | Agent invoked |
+Agents are specialized subagents that Claude routes to automatically based on your query.
+
+| Query pattern | Agent |
 |---|---|
-| "Where is X defined?" | `symbol-locator` |
-| "Trace X from Python to kernel" | `call-tracer` |
-| "Write a kernel for X" | `kernel-writer` |
-| "Add op X end-to-end" | `op-adder` |
-| "Check backward for X" | `backward-checker` |
-| "Review this PR" | `pr-reviewer` |
-| "Check torch.compile for X" | `compile-tester` |
+| "Where is X defined?" / "Find X" / "Locate X" / "What file is X in?" | `symbol-locator` |
+| "Trace X from Python to kernel" / "How does X reach C++?" / "Dispatch path for X" | `call-tracer` |
+| "What files do I touch to do X?" / "How is X structured?" / "Explore X" | `codebase-explorer` |
+| "Write a kernel for X" / "Add YAML entry for X" / "Write meta kernel for X" | `kernel-writer` |
+| "Add op X end-to-end" / "Add aten::X" | `op-adder` |
+| "Write tests for X" / "Write OpInfo for X" / "Write gradcheck for X" | `test-writer` |
+| "Check backward for X" / "Verify gradcheck for X" / "Jacobian mismatch in X" | `backward-checker` |
+| "Check torch.compile for X" / "Graph break in X" / "Is X compile-compatible?" | `compile-tester` |
+| "Review this PR" / "Review these changes" | `pr-reviewer` |
+| "Review this file" / "Review this diff" / "Check this code for footguns" | `code-reviewer` |
+| "Write a PR description for X" | `pr-author` |
+| "Track PR status" / "Monitor PR CI" / "Is PR X ready to merge?" | `pr-lifecycle` |
+| "Lint X" / "Check citations in X" | `lint-checker` |
+| "Build error" / "Compiler error" / "Why does the build fail?" | `compiler-expert` |
+| "Run the build" / "What build command do I run?" | `build-runner` |
+| "File a GitHub issue" / "Comment on PR" / "Create PR" | `github-ops` |
 | "Triage this issue" | `issue-triager` |
+| "CUDA memory" / "Memory leak" / "Peak memory for X" | `cuda-perf` |
+| "Distributed error" / "NCCL error" / "DDP issue" | `distributed-debugger` |
+| "Onboard me" / "How do I contribute?" / "New contributor" | `onboarding-guide` |
+| "Answer question X from questions.md" / "Find proof for X" | `question-solver` |
+| "Update stale citations" / "Migrate citations after commit switch" | `adk-migrator` |
 
-Full routing table is in `.claude/CLAUDE.md`.
+Full routing rules are in `.claude/CLAUDE.md`.
+
+### Skills
+
+Skills are deep-knowledge files that Claude loads automatically when a question touches the relevant domain.
+
+| Query domain | Skill |
+|---|---|
+| Dispatcher routing, DispatchKey, kernel tables | `dispatcher` |
+| Backward passes, grad_fn, autograd engine internals | `autograd` |
+| ATen kernels, native_functions.yaml, structured kernels | `kernels` |
+| torch._inductor, Triton codegen, lowering failures | `inductor` |
+| CUDA allocator, streams, synchronization, kernel launch | `cuda_runtime` |
+| torch.fx, Graph, Node, GraphModule, symbolic tracing | `fx` |
+| torch.export, ExportedProgram, dynamic shapes | `export` |
+| Distributed training, DDP, NCCL, FSDP, all_reduce | `distributed` |
+| TorchDynamo, bytecode tracing, FakeTensor, graph breaks | `dynamo` |
+| c10 layer, TensorImpl, Storage, IValue, DeviceType | `c10-core` |
+| Tensor object hierarchy, StorageImpl, DataPtr, memory layout | `tensor-internals` |
+| Backend kernel registration, TORCH_LIBRARY_IMPL, CompositeImplicitAutograd | `backend-reg` |
+| OpInfo entries, sample inputs, gradcheck flags | `opinfo` |
+| In-place/view op functionalization, FunctionalTensorWrapper | `functionalization` |
+| pybind11 layer, THPVariable, Python↔C++ bindings | `pybind` |
+| torchgen code generation from native_functions.yaml | `torchgen` |
+| PyTorch build system, setup.py, CMake, build failures | `build` |
+| pre-commit, flake8, mypy, clang-format, clang-tidy | `lint` |
+| PR lifecycle, gh commands, CI systems | `github` |
+| Custom operator registration via torch.library / TORCH_LIBRARY | `custom-ops` |
+| PR review checklist, correctness, safety, style | `pr-review` |
+| ADK index artifacts, symbols.json, O(1) symbol lookup | `index` |
+| Test coverage of call edges, blast-radius checks | `test-graph` |
+| Multi-step orchestrator failure modes, handoff block schema | `error-handling` |
+| Citation completeness verification, path:LINE anchors | `verify-answer` |
+
+### Hooks
+
+Hooks fire automatically on tool events — no query needed.
+
+| Trigger event | Hook | What it does |
+|---|---|---|
+| Session start (`SessionStart`) | `session-start-init.py` | Loads ADK.md, checks index currency, reviews questions.md |
+| Before any file edit (`PreToolUse`) | `pre-edit-block-generated.sh` | Blocks writes to generated files (`@generated`, `build/`, etc.) |
+| Before editing Tier 1 files (`PreToolUse`) | `pre-edit-dispatcher-check.sh` | Blast-radius check; requires explicit user confirmation |
+| After any file edit (`PostToolUse`) | `post-edit-targeted-tests.py` | Runs tests that cover the changed file |
+| After any file edit (`PostToolUse`) | `post-edit-impact-analysis.py` | Reports downstream symbols affected by the change |
+| Session end (`Stop`) | `stop-summary.py` | Prints a concise session summary |
+| Session end (`Stop`) | `stop-regression-report.py` | Reports any test regressions introduced this session |
+| Session end (`Stop`) | `verify_answer.py` | Verifies all factual citations resolve to real path:LINE anchors |
+| Session end (`Stop`) | `handoff-block-enforcer.py` | Ensures orchestrator handoff blocks match canonical schema |
 
 ## Index
 

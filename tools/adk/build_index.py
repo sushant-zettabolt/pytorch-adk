@@ -59,18 +59,26 @@ def get_head_commit(root: Path) -> str:
 def scan_python_symbols(root: Path) -> dict:
     symbols: dict = {}
     file_count = 0
+    py_start = time.time()
 
-    for py_file in root.rglob("*.py"):
-        if _should_skip(py_file, root):
-            continue
+    all_py_files = [
+        f for f in root.rglob("*.py") if not _should_skip(f, root)
+    ]
+    total_py = len(all_py_files)
+    print(f"  Python: {total_py} files to scan")
+
+    for py_file in all_py_files:
         try:
             text = py_file.read_text(errors="replace")
             tree = ast.parse(text, filename=str(py_file))
         except SyntaxError:
+            file_count += 1
             continue
 
         rel_path = str(py_file.relative_to(root))
         file_count += 1
+
+        print(f"  Python [{file_count}/{total_py}] indexing {rel_path}")
 
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -86,10 +94,8 @@ def scan_python_symbols(root: Path) -> dict:
                         "resolution": "static",
                     }
 
-        if file_count % 500 == 0:
-            print(f"  Python: scanned {file_count} files, {len(symbols)} symbols")
-
-    print(f"  Python: {len(symbols)} symbols from {file_count} files")
+    py_elapsed = time.time() - py_start
+    print(f"  Python: {len(symbols)} symbols from {file_count} files in {py_elapsed:.1f}s")
     return symbols
 
 
@@ -167,10 +173,19 @@ def scan_cpp_symbols(root: Path) -> dict:
             print("  C++: ctags timed out — falling back to grep")
 
     # Grep fallback
-    print(f"  C++: grep fallback on {len(cpp_files)} files...")
-    for cpp_file in cpp_files:
+    total_cpp = len(cpp_files)
+    print(f"  C++: grep fallback on {total_cpp} files (ctags not available)")
+    print(f"  C++: this may take several minutes for large codebases")
+
+    grep_start = time.time()
+    PROGRESS_INTERVAL = 200  # print a line every N files
+
+    for file_idx, cpp_file in enumerate(cpp_files, 1):
+        rel_path = str(cpp_file.relative_to(root))
+
+        print(f"  C++ [{file_idx}/{total_cpp}] indexing {rel_path}")
+
         try:
-            rel_path = str(cpp_file.relative_to(root))
             for lineno, line in enumerate(cpp_file.read_text(errors="replace").splitlines(), 1):
                 for pat in (_CPP_CLASS_RE, _CPP_FUNC_RE):
                     m = pat.match(line)
@@ -186,10 +201,11 @@ def scan_cpp_symbols(root: Path) -> dict:
                                     "resolution": "static",
                                 }
                         break
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"  C++ grep  WARNING: skipping {rel_path} ({exc})")
 
-    print(f"  C++: {len(symbols)} symbols via grep")
+    grep_elapsed = time.time() - grep_start
+    print(f"  C++: {len(symbols)} symbols via grep in {grep_elapsed:.1f}s")
     return symbols
 
 
